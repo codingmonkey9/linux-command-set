@@ -11,6 +11,7 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 
 3. If address range is not provided by default, then SED operates on each line.
 </details>
+> **地址范围、模式匹配、选项、命令都可以组合在一起使用**
 
 ### 选项
 - `sed  ''`       &emsp;&emsp; #相当于`cat` 命令，显示文本内容。可接*pipe，stdin，file*
@@ -28,13 +29,34 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 
 ### 命令
 
+<details>
+  <summary>命令大小写区别</summary>
+  默认情况下，SED在单行上运行，但是也可以在多行上运行。多行命令由大写字母表示.
+<details>
+
 - `b`       &emsp; #可以指定要跳转的标签（用于循环）
 - `t`       &emsp; #指定跳转的标签（用于分支）
 - `p`       &emsp; #打印输出
 - `d`       &emsp; #删除，仅删除pattern buffer中的数据，源文件不受影响。删除源文件内容加上`-i`
-- https://www.tutorialspoint.com/sed/sed_basic_commands.htm
+- `w`       &emsp; #备份，和选项`-i[suffix]` 不同，`-i[suffix]`是在操作前把源文件备份，而`w`是把操作的结果保存到指定的文件中。注：如果指定的文件不存在则创建；存在则覆盖。
+- `a`       &emsp; #追加，不是在行的末尾添加内容，而是另起一行。如果是地址范围或模式匹配，那么成功匹配的每一行后面都会追加一行。
+- `c`       &emsp; #修改，把指定的行的内容用新文本替换，**注：**如果指定**连续的多行**，sed会把这些行当作一个组（group），用新文本替换这个组。而不是每一行都替换。见示例
+- `i`       &emsp; #插入，和`a`基本相同，唯一不同的是`a`是将内容加到紧挨着指定行的下一行，而`i`则是加到指定行的上一行
+- `l`       &emsp; #显示隐藏的字符（比如空格，tab这类的），如果后面接数字，则表示多少个字符以后换行，如果是0，则不会换行，除非有表示新行的字符出现
+- `q`       &emsp; #退出，遇到`q`退出当前sed执行流
+- `r`       &emsp; #读取，读取一个文件内容，可以读取一个文件内容插入另一个文件中，见示例
+- `e`       &emsp; #执行`e`后面指令，如果`e`后面没有给出指令，则会把buffer中的内容当作指令来执行
+- `N`       &emsp; #在行末尾添加`\n`然后把下一行（next line）追加到`\n`后面。即相当于是`\n`把两行连接成一行。
+- `=`       &emsp; #把行号一起打印出来
+- `&`       &emsp; #把模式匹配成功的内容存储到`&`中，可以把`&`理解为一个变量，变量值就是成功匹配到的内容。`&`通常与替换命令一同使用
+- `s`       &emsp; #替换，`sed 's/pattern/replacement/[flag]'` 用replacement替换搜索到的pattern。下面列出常用flag
+    -   `g`       &emsp; #`sed` 默认会匹配所有行，但是同一行有多个要替换的值时，默认只会替换第一个匹配到的值。如果想要将匹配的同一行的所有值都替换，则需要加`g`
+    -   `i`       &emsp; #忽略大小写
+- https://www.tutorialspoint.com/sed/sed_managing_patterns.htm
 
 ### 地址范围
+
+> **地址范围既可以是行号，也可以是模式字符串**
 
 - `sed '3p' file`       &emsp; #打印第3行，如果不加数字只有命令p，则打印所有行
 - `sed '$p' file`       &emsp; #打印最后一行
@@ -45,6 +67,8 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 ### 模式匹配
 
 > A pattern range can be a simple text or a complex regular expression.
+> 模式匹配的定界符可以是`/` or `@` or `^` or `!` or `+` 等等。在某些情况下，比如匹配目录时，虽然可以将`/`写成`\/`转义，但是太乱可读性不是太好。所以可以更换定界符。
+> 模式匹配中获取匹配到的子串的方式： 被`\(` 和 `\)`包裹的pattern 按顺序存储在`\number`中 （number为1，2，3……），见示例
 
 - `sed -n '/Paulo/ p' test.txt`        &emsp; #打印包含*Paulo*的行
 - `sed -n '/Alchemist/, 5 p' test.txt`       &emsp; #从含有*Alchemist*的行到第5行
@@ -65,6 +89,21 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 - `sed -n '/Alchemist/, 5 p' test.txt`       &emsp; #从含有*Alchemist*的行到第5行
 - `sed -n '/Two/, /Pilgrimage/ p' books.txt`        &emsp; #从含有*Two*的行到含有*Pilgrimage*的行
 - `sed -n '/Two/, +4 p' books.txt`          &emsp; #从含有*Two*的行开始，打印共4行
+- `sed '2d;w testing.bak1' testing`       &emsp; #在buffer中把testing第二行删除，再把删除后的结果保存到testing.bak1文件（**不加`-i`都是修改buffer，下面不再声明**）
+- `sed -n -e '/Martin/ w Martin.txt' -e '/Paulo/ w Paulo.txt' -e '/Tolkien/ w Tolkien.txt' books.txt`       &emsp; #假设books.txt的每一行内容是书名和作者，那么现在要统计一个作者的所有书名，就可以组合使用选项、命令、模式匹配来达到目的。（ps：多个脚本命令可以使用`;`来分隔，这样就不需要写多个`-e`了）
+- `sed -e '2 a text contents' test.txt`       &emsp; #会在第二行后面插入一行内容*text contents*
+- `sed -e '2,4 a text contents' testing`        &emsp; #第二行到第四行，每一行下面都会追加一行*text contents*
+- `sed '4, 6 c Adultry' books.txt`        &emsp; #用一行*Adultry*替换掉4到6行，最终是只有一行*Adultry*，而不是三行。注意和`a`的区别
+- `sed '1~2 c 4) Adultry, Paulo Coelho, 324' testing`       &emsp; #如果是**不连续的多行**，那就是分别替换。 （只把连续的行当作一组）
+- `sed '3 r junk.txt' books.txt`        &emsp; #把*junk.txt*内容插入到*books.txt*的第3行的下面，即第3行和第4行之间插入新行（相当于`a`的追加）
+- `sed '3,5 r junk.txt' books.txt`        &emsp; #3，4，5每行下面都插入
+- `sed '3 e date' books.txt`        &emsp; #执行`date`得到日期，再把日期作为新行插入到第3行之前
+- `sed 'N; s/\n/==/' testing`       &emsp; #用`==`连接两行
+- `sed '3N; s/\n/==/' testing`        &emsp; #只把第3行和第4行用`==`连接起来
+- `sed '/Paulo/ =' books.txt`       &emsp; #打印所有行内容，但只把*Paulo*所在行行号打印出来
+- `sed -n '$ =' books.txt`        &emsp; #把总行数打印出来（`-n`把最后一行内容忽略掉了）
+- `sed 's/[[:digit:]]/Book number &/' books.txt`        &emsp; #用`Book number [[:digit:]]` 替换`[[:digit:]]` （ps:[[:digit:]] 表示数字）
+- `echo "Three,One,Two" | sed 's|\(\w\+\),\(\w\+\),\(\w\+\)|\2,\3,\1|'`       &emsp; #分别获取三个单词并调整顺序
 
 ### 循环和分支
 
