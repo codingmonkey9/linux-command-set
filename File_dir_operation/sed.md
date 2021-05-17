@@ -65,10 +65,13 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 <details>
   <summary>pattern buffer and hold buffer</summary>
   pattern  buffer中的内容在执行完sed命令后会被清空，就好比局部变量。而hold buffer中的内容在sed整个周期都存在，就好比全局变量。  
+  
   pattern buffer：可以存储一行，也可以存储多行。因为有些命令是向pattern  buffer中添加内容的，比如`N`，关键是无论一行还是多行，执行完指令后pattern  buffer会被清空。  
   hold buffer：同样可以存储一行或多行。  
+  
   什么时候清空pattern buffer？  
   举个例子：一个文件中有10行，其中5行含有*hold*，执行命令`sed -n '/hold/ x;p;x;p' testfile`，并不是说执行一个`x`后就清空pattern buffer，而是将含有*hold*的一行读取到pattern buffer中，执行完`x;p;x;p`这4条指令后（自然是执行完全部指令，只不过这里只有四条指令），清空pattern buffer，然后读取下一行到pattern  buffer中，如果符合条件就继续执行这几条指令。如此重复，直到该文件中所有行全部读取过（读取到pattern buffer后再进行条件比较？）  
+  
   什么时候清空hold buffer？  
   上面的清楚了，自然就知道当文件中所有行都读取完毕并且指令执行完毕，sed的生命周期结束了，hold buffer中的内容就被清空了。  
 </details>
