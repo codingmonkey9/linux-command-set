@@ -32,31 +32,50 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 <details>
   <summary>命令大小写区别</summary>
   默认情况下，SED在单行上运行，但是也可以在多行上运行。多行命令由大写字母表示.
-<details>
+</details>
 
 - `b`       &emsp; #可以指定要跳转的标签（用于循环）
 - `t`       &emsp; #指定跳转的标签（用于分支）
 - `p`       &emsp; #打印输出
 - `d`       &emsp; #删除，仅删除pattern buffer中的数据，源文件不受影响。删除源文件内容加上`-i`
-- `w`       &emsp; #备份，和选项`-i[suffix]` 不同，`-i[suffix]`是在操作前把源文件备份，而`w`是把操作的结果保存到指定的文件中。注：如果指定的文件不存在则创建；存在则覆盖。
+- `w`       &emsp; #备份，和选项`-i[suffix]` 不同，`-i[suffix]`是在操作前把源文件备份，而`w`是把操作的结果保存到指定的文件中。注：如果`w`指定的文件不存在则创建；存在则覆盖。
 - `a`       &emsp; #追加，不是在行的末尾添加内容，而是另起一行。如果是地址范围或模式匹配，那么成功匹配的每一行后面都会追加一行。
 - `c`       &emsp; #修改，把指定的行的内容用新文本替换，**注：**如果指定**连续的多行**，sed会把这些行当作一个组（group），用新文本替换这个组。而不是每一行都替换。见示例
 - `i`       &emsp; #插入，和`a`基本相同，唯一不同的是`a`是将内容加到紧挨着指定行的下一行，而`i`则是加到指定行的上一行
-- `l`       &emsp; #显示隐藏的字符（比如空格，tab这类的），如果后面接数字，则表示多少个字符以后换行，如果是0，则不会换行，除非有表示新行的字符出现
+- `l`       &emsp; #打印当前*pattern  buffer*中的内容，如果后面接数字，则表示多少个字符以后换行（为了方便阅读），如果是0，则不会换行（除非有换行符）（`l`打印出的内容结尾都有一个`$`）
 - `q`       &emsp; #退出，遇到`q`退出当前sed执行流
 - `r`       &emsp; #读取，读取一个文件内容，可以读取一个文件内容插入另一个文件中，见示例
-- `e`       &emsp; #执行`e`后面指令，如果`e`后面没有给出指令，则会把buffer中的内容当作指令来执行
-- `N`       &emsp; #在行末尾添加`\n`然后把下一行（next line）追加到`\n`后面。即相当于是`\n`把两行连接成一行。
-- `=`       &emsp; #把行号一起打印出来
+- `e`       &emsp; #执行`e`后面指令，如果`e`后面没有给出指令，则会把pattern buffer中的内容当作指令来执行
+- `N`       &emsp; #在*pattern buffer*中的行末尾添加`\n`然后把下一行（next line）追加到`\n`后面。此时在*pattern  buffer*中内容就是`cur line`+`\n`+`next line`
+- `=`       &emsp; #把行号一起打印出来，行号和行内容不在一行上
 - `&`       &emsp; #把模式匹配成功的内容存储到`&`中，可以把`&`理解为一个变量，变量值就是成功匹配到的内容。`&`通常与替换命令一同使用
 - `s`       &emsp; #替换，`sed 's/pattern/replacement/[flag]'` 用replacement替换搜索到的pattern。下面列出常用flag
     -   `g`       &emsp; #`sed` 默认会匹配所有行，但是同一行有多个要替换的值时，默认只会替换第一个匹配到的值。如果想要将匹配的同一行的所有值都替换，则需要加`g`
     -   `i`       &emsp; #忽略大小写
-- https://www.tutorialspoint.com/sed/sed_managing_patterns.htm
+- `x`       &emsp; #交换pattern buffer的内容和hold buffer内容（pattern buffer 和 hold buffer初始都为空行）hold buffer中未交换出去的内容会被一直保留，直到sed整个周期结束
+- `h`       &emsp; #Copy pattern space to hold space.（读取`n`，复制`h g` 都会覆盖原来的内容）
+- `H`       &emsp; #append pattern space to hold space. (所有的追加`a H G N`，都会在原来的内容结尾先添加一个`\n`，然后再追加内容)
+- `g`       &emsp; #Copy hold space to pattern space.（和`s`搭配的`g`是flags，不是命令。注意区分。命令之间用`;`分隔）
+- `G`       &emsp; #append hold space to pattern space.
+- `n`       &emsp; #Read the next line of input into the pattern space.
+- `N`       &emsp; #append the next line of input into the pattern space.
+- `!`       &emsp; #逻辑非，和编程语言的!一个意思
+- `{}`        &emsp; #把多个命令作为一组，比如：`sed -n '/pau/x;p' testfile` 和 `sed -n '/pau/{x;p}' testfile` 不同，`{x;p}`是满足条件才执行，而第一个`p`没有条件判断，只`x`判断
+
+<details>
+  <summary>pattern buffer and hold buffer</summary>
+  pattern  buffer中的内容在执行完sed命令后会被清空，就好比局部变量。而hold buffer中的内容在sed整个周期都存在，就好比全局变量。
+  pattern buffer：可以存储一行，也可以存储多行。因为有些命令是向pattern  buffer中添加内容的，比如`N`，关键是无论一行还是多行，执行完指令后pattern  buffer会被清空。
+  hold buffer：同样可以存储一行或多行。
+  什么时候清空pattern buffer？
+  举个例子：一个文件中有10行，其中5行含有*hold*，执行命令`sed -n '/hold/ x;p;x;p' testfile`，并不是说执行一个`x`后就清空pattern buffer，而是将含有*hold*的一行读取到pattern buffer中，执行完`x;p;x;p`这4条指令后（自然是执行完全部指令，只不过这里只有四条指令），清空pattern buffer，然后读取下一行到pattern  buffer中，如果符合条件就继续执行这几条指令。如此重复，直到该文件中所有行全部读取过（读取到pattern buffer后再进行条件比较？） 
+  什么时候清空hold buffer？
+  上面的清楚了，自然就知道当文件中所有行都读取完毕并且指令执行完毕，sed的生命周期结束了，hold buffer中的内容就被清空了。
+</details>
 
 ### 地址范围
 
-> **地址范围既可以是行号，也可以是模式字符串**
+> **地址范围既可以是行号，也可以是模式字符串**，它就是一个判断条件，符合的才会执行命令.例如`3d`，只有是第3行的才会删除
 
 - `sed '3p' file`       &emsp; #打印第3行，如果不加数字只有命令p，则打印所有行
 - `sed '$p' file`       &emsp; #打印最后一行
@@ -104,6 +123,8 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 - `sed -n '$ =' books.txt`        &emsp; #把总行数打印出来（`-n`把最后一行内容忽略掉了）
 - `sed 's/[[:digit:]]/Book number &/' books.txt`        &emsp; #用`Book number [[:digit:]]` 替换`[[:digit:]]` （ps:[[:digit:]] 表示数字）
 - `echo "Three,One,Two" | sed 's|\(\w\+\),\(\w\+\),\(\w\+\)|\2,\3,\1|'`       &emsp; #分别获取三个单词并调整顺序
+- `echo $'1\n2\n3\n4' | sed -n '1~2h;2~2{p;x;p}'`       &emsp; #通过hold buffer调整顺序
+- （1）`sed -n 'x;n;p' books.txt ` 和 （2）`sed -n 'x;p' books.txt ` 的区别：（1）打印的是从books.txt读取的内容，（2）打印的是从hold buffer中交换的内容
 
 ### 循环和分支
 
@@ -114,3 +135,10 @@ Data can be stored in a hold buffer for later retrieval. At the end of each cycl
 :end 
 :up
 ```
+
+### 参考资料
+- https://www.tutorialspoint.com/sed/index.htm
+- https://stackoverflow.com/questions/12833714/the-concept-of-hold-space-and-pattern-space-in-sed/12834372#12834372
+
+### 手册（应该不是官方手册）
+- https://www.grymoire.com/Unix/Sed.html#uh-52
